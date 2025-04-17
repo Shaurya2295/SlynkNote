@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Slynk Notes</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📝</text></svg>">
+
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react-quill@2.0.0/dist/react-quill.js"></script>
+    <link href="https://unpkg.com/quill@2.0.0/dist/quill.snow.css" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        'deep-bg': '#1a1a1d',
+                        'deep-card': '#2c2c31',
+                        'deep-border': '#4a4a52',
+                        'neon-green': '#66ff00',
+                        'neon-pink': '#ff00ff',
+                        'neon-cyan': '#00ffff',
+                        'neon-yellow': '#ffff00',
+                        'neon-orange': '#ff8c00',
+                        'accent-blue': '#3b82f6',
+                        // Added more colors
+                        'neon-teal': '#00f5d4',
+                        'neon-purple': '#9b5de5',
+                        'bright-red': '#f00000',
+                        'calm-indigo': '#4f46e5',
+                        'light-text': '#f1f1f1', // Main text on dark bg
+                        'dim-text': '#a1a1aa',   // Secondary text on dark bg
+                        'dark-text': '#1a1a1d', // Main text on light/colored bg
+                        'dark-dim-text': '#4a4a52', // Secondary text on light/colored bg
+                    },
+                    fontFamily: {
+                        mono: ['"JetBrains Mono"', '"Fira Code"', 'monospace'],
+                        sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', '"Helvetica Neue"', 'Arial', '"Noto Sans"', 'sans-serif', '"Apple Color Emoji"', '"Segoe UI Emoji"', '"Segoe UI Symbol"', '"Noto Color Emoji"'],
+                        serif: ['Georgia', 'Cambria', '"Times New Roman"', 'Times', 'serif'],
+                    },
+                    boxShadow: {
+                        'neon-green': '0 0 5px #66ff00, 0 0 10px #66ff00, 0 0 15px #66ff00',
+                        'neon-sm': '0 0 3px rgba(102, 255, 0, 0.7)',
+                        'input-focus': '0 0 0 2px #1a1a1d, 0 0 0 4px #66ff00',
+                    },
+                    keyframes: {
+                        fadeIn: { '0%': { opacity: '0', transform: 'scale(0.95)' }, '100%': { opacity: '1', transform: 'scale(1)' } },
+                        fadeOut: { '0%': { opacity: '1', transform: 'scale(1)' }, '100%': { opacity: '0', transform: 'scale(0.95)' } },
+                        slideInUp: { '0%': { opacity: '0', transform: 'translateY(20px) scale(0.98)' }, '100%': { opacity: '1', transform: 'translateY(0) scale(1)' } },
+                        ripple: {
+                            '0%': { transform: 'scale(0)', opacity: '0.3' },
+                            '100%': { transform: 'scale(4)', opacity: '0' }
+                        },
+                         pulseGlow: {
+                            '0%, 100%': { opacity: 0.08 },
+                            '50%': { opacity: 0.15 }
+                        }
+                    },
+                    animation: {
+                        fadeIn: 'fadeIn 0.3s ease-out forwards',
+                        fadeOut: 'fadeOut 0.3s ease-in forwards',
+                        slideInUp: 'slideInUp 0.3s ease-out forwards',
+                        ripple: 'ripple 700ms cubic-bezier(0.4, 0, 0.2, 1)',
+                         pulseGlow: 'pulseGlow 15s ease-in-out infinite',
+                    }
+                },
+            },
+            plugins: [],
+        }
+    </script>
+
+    <!-- Custom Inline Styles -->
+    <style type="text/tailwindcss">
+        @layer base {
+            body {
+                @apply bg-deep-bg text-light-text font-sans antialiased relative;
+                background-image:
+                    linear-gradient(rgba(102, 255, 0, 0.03) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(102, 255, 0, 0.03) 1px, transparent 1px);
+                background-size: 25px 25px;
+                background-position: center center;
+                background-attachment: fixed;
+            }
+             body::before {
+                content: '';
+                position: fixed;
+                top: 0; left: 0; right: 0; bottom: 0;
+                background: radial-gradient(circle at center, rgba(102, 255, 0, 0.15) 0%, rgba(102, 255, 0, 0) 60%);
+                opacity: 0.1;
+                animation: pulseGlow 15s ease-in-out infinite;
+                pointer-events: none;
+                z-index: -1;
+            }
+             /* Hide native appearance for color input */
+            input[type="color"] {
+                -webkit-appearance: none;
+                appearance: none;
+                padding: 0;
+                border: none;
+                background: transparent; /* Make underlying icon visible */
+                /* Size handled by absolute positioning in the component */
+            }
+             /* Remove default swatch styling if browser adds it */
+            input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; border: none;}
+            input[type="color"]::-webkit-color-swatch { border: none; border-radius: 50%; } /* Can keep radius if desired */
+            input[type="color"]::-moz-color-swatch { border: none; border-radius: 50%; }
+        }
+        @layer components {
+            .ripple-container { @apply relative overflow-hidden; }
+            .ripple-effect { @apply absolute rounded-full bg-white opacity-30 pointer-events-none; animation: ripple 700ms cubic-bezier(0.4, 0, 0.2, 1); transform: scale(0); }
+
+            /* Quill Editor Styling */
+            .ql-toolbar { @apply rounded-t-md border-deep-border bg-deep-card !important; }
+            .ql-container {
+                @apply rounded-b-md border-deep-border text-light-text !important;
+                max-height: 300px;
+                overflow-y: auto;
+                scrollbar-width: thin;
+                scrollbar-color: theme('colors.deep-border') theme('colors.deep-card');
+             }
+             .ql-container::-webkit-scrollbar { width: 6px; }
+             .ql-container::-webkit-scrollbar-track { background: theme('colors.deep-card'); }
+             .ql-container::-webkit-scrollbar-thumb { background-color: theme('colors.deep-border'); border-radius: 3px; }
+             .ql-container::-webkit-scrollbar-thumb:hover { background-color: theme('colors.neon-green'); }
+             .ql-editor { @apply font-sans text-base !important; outline: none !important; box-shadow: none !important; min-height: 150px; }
+             .ql-editor.ql-blank::before { @apply text-dim-text not-italic !important; }
+            .ql-snow .ql-stroke { stroke: theme('colors.dim-text'); }
+            .ql-snow .ql-fill { fill: theme('colors.dim-text'); }
+            .ql-snow .ql-picker-label { @apply text-dim-text !important; }
+             .ql-snow .ql-toolbar button:hover .ql-stroke, .ql-snow.ql-toolbar button:hover .ql-stroke,
+             .ql-snow .ql-toolbar button:focus .ql-stroke, .ql-snow.ql-toolbar button:focus .ql-stroke,
+             .ql-snow .ql-toolbar button.ql-active .ql-stroke, .ql-snow.ql-toolbar button.ql-active .ql-stroke,
+             .ql-snow .ql-toolbar .ql-picker-label:hover, .ql-snow.ql-toolbar .ql-picker-label:hover,
+             .ql-snow .ql-toolbar .ql-picker-item:hover, .ql-snow.ql-toolbar .ql-picker-item:hover { stroke: theme('colors.neon-green'); }
+             .ql-snow .ql-toolbar button:hover .ql-fill, .ql-snow.ql-toolbar button:hover .ql-fill,
+             .ql-snow .ql-toolbar button:focus .ql-fill, .ql-snow.ql-toolbar button:focus .ql-fill,
+             .ql-snow .ql-toolbar button.ql-active .ql-fill, .ql-snow.ql-toolbar button.ql-active .ql-fill { fill: theme('colors.neon-green'); }
+            .ql-snow .ql-toolbar .ql-picker-label:hover, .ql-snow.ql-toolbar .ql-picker-label:hover,
+            .ql-snow .ql-toolbar .ql-picker-label.ql-active, .ql-snow.ql-toolbar .ql-picker-label.ql-active,
+            .ql-snow .ql-toolbar .ql-picker-item.ql-selected, .ql-snow.ql-toolbar .ql-picker-item.ql-selected { @apply text-neon-green !important; }
+             .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="sans-serif"]::before,
+             .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="sans-serif"]::before { font-family: Inter, sans-serif; content: 'Sans Serif'; }
+             .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="serif"]::before,
+             .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="serif"]::before { font-family: Georgia, serif; content: 'Serif'; }
+             .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="monospace"]::before,
+             .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="monospace"]::before { font-family: "JetBrains Mono", monospace; content: 'Monospace'; }
+             .ql-snow .ql-picker.ql-font .ql-picker-label::before{ content: 'Sans Serif'; }
+        }
+        @layer utilities {
+            .text-shadow-neon-green { text-shadow: 0 0 3px #66ff00, 0 0 5px rgba(102, 255, 0, 0.5); }
+            .card-accent-border { @apply border-l-4; }
+            .note-content-area {
+                max-height: 300px; overflow-y: auto;
+                @apply mb-3 break-words;
+                scrollbar-width: thin; scrollbar-color: theme('colors.deep-border') theme('colors.deep-card');
+            }
+            .note-content-area::-webkit-scrollbar { width: 6px; }
+            .note-content-area::-webkit-scrollbar-track { background: theme('colors.deep-card'); }
+            .note-content-area::-webkit-scrollbar-thumb { background-color: theme('colors.deep-border'); border-radius: 3px; }
+            .note-content-area::-webkit-scrollbar-thumb:hover { background-color: theme('colors.neon-green'); }
+             .tag-badge { @apply inline-block bg-deep-border bg-opacity-50 text-dim-text text-xs font-mono px-2 py-0.5 rounded-full mr-1 mb-1; }
+             .tag-badge-dark { @apply inline-block bg-black bg-opacity-20 text-dark-dim-text text-xs font-mono px-2 py-0.5 rounded-full mr-1 mb-1; }
+             /* Tag badge for dynamic background colors (uses white/black based on contrast) */
+             .tag-badge-dynamic-light { @apply inline-block bg-white bg-opacity-25 text-light-text text-xs font-mono px-2 py-0.5 rounded-full mr-1 mb-1; }
+             .tag-badge-dynamic-dark { @apply inline-block bg-black bg-opacity-20 text-dark-text text-xs font-mono px-2 py-0.5 rounded-full mr-1 mb-1; }
+        }
+        /* Global Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #2c2c31; }
+        ::-webkit-scrollbar-thumb { background: #4a4a52; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #66ff00; }
+        /* Transitions */
+        button, a, input, textarea, .note-card, select { @apply transition-all duration-200 ease-in-out; }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo, useCallback, useRef } = React;
+        const ReactQuill = window.ReactQuill;
+
+        // --- Constants ---
+        const LOCAL_STORAGE_KEY = 'slynk-notes';
+        const ACCENT_COLORS = [
+            // Added hex values for direct use and custom picker comparison
+            { name: 'Neon Green', value: 'border-neon-green', bg: 'bg-neon-green', hex: '#66ff00' },
+            { name: 'Neon Pink', value: 'border-neon-pink', bg: 'bg-neon-pink', hex: '#ff00ff' },
+            { name: 'Neon Cyan', value: 'border-neon-cyan', bg: 'bg-neon-cyan', hex: '#00ffff' },
+            { name: 'Neon Yellow', value: 'border-neon-yellow', bg: 'bg-neon-yellow', hex: '#ffff00' },
+            { name: 'Neon Orange', value: 'border-neon-orange', bg: 'bg-neon-orange', hex: '#ff8c00' },
+            { name: 'Accent Blue', value: 'border-accent-blue', bg: 'bg-accent-blue', hex: '#3b82f6' },
+            { name: 'Neon Teal', value: 'border-neon-teal', bg: 'bg-neon-teal', hex: '#00f5d4' },
+            { name: 'Neon Purple', value: 'border-neon-purple', bg: 'bg-neon-purple', hex: '#9b5de5' },
+            { name: 'Bright Red', value: 'border-bright-red', bg: 'bg-bright-red', hex: '#f00000' },
+            { name: 'Calm Indigo', value: 'border-calm-indigo', bg: 'bg-calm-indigo', hex: '#4f46e5' },
+            { name: 'Deep Card', value: 'border-deep-border', bg: 'bg-deep-card', hex: '#2c2c31' }, // Default/Neutral last
+        ];
+        const DEFAULT_COLOR_OBJECT = ACCENT_COLORS.find(c => c.bg === 'bg-deep-card');
+
+        const Font = ReactQuill.Quill.import('formats/font');
+        Font.whitelist = ['sans-serif', 'serif', 'monospace'];
+        ReactQuill.Quill.register(Font, true);
+
+        // --- Helper Functions ---
+        function generateId() { return Date.now().toString(36) + Math.random().toString(36).substr(2, 9); }
+        function getRandomAccent() { return ACCENT_COLORS[Math.floor(Math.random() * (ACCENT_COLORS.length - 1))]; } // Avoid default
+        function formatDate(timestamp) { return timestamp ? new Date(timestamp).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''; }
+        function parseTags(tagString) { return tagString.split(',').map(tag => tag.trim()).filter(tag => tag !== ''); }
+        function formatTags(tagArray) { return (tagArray || []).join(', '); }
+
+        function hexToRgb(hex) {
+            let result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? { r: parseInt(result[1], 16), g: parseInt(result[2], 16), b: parseInt(result[3], 16) } : null;
+        }
+
+        function getLuminance(hex) {
+            const rgb = hexToRgb(hex);
+            if (!rgb) return 0;
+            const { r, g, b } = rgb;
+            const a = [r, g, b].map(function (v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+            return a[0] * 0.2126 + a[1] * 0.7152 + a[2] * 0.0722;
+        }
+
+        function getTextColorForBackground(hex) {
+            const luminance = getLuminance(hex);
+            return luminance > 0.4 ? 'dark' : 'light';
+        }
+
+        // --- Hooks ---
+        function useRipple(ref) {
+             useEffect(() => {
+                const element = ref.current;
+                if (!element) return;
+                const createRipple = (event) => {
+                    element.classList.add('ripple-container');
+                    const ripple = document.createElement("span");
+                    const rect = element.getBoundingClientRect();
+                    const size = Math.max(rect.width, rect.height) * 1.5;
+                    const x = event.clientX - rect.left - size / 2;
+                    const y = event.clientY - rect.top - size / 2;
+                    ripple.style.width = ripple.style.height = `${size}px`;
+                    ripple.style.left = `${x}px`; ripple.style.top = `${y}px`;
+                    ripple.classList.add("ripple-effect");
+                    const animationDuration = 700;
+                    const timeoutId = setTimeout(() => ripple.remove(), animationDuration);
+                    ripple.addEventListener('animationend', () => { clearTimeout(timeoutId); ripple.remove(); });
+                    element.appendChild(ripple);
+                };
+                element.addEventListener('mousedown', createRipple);
+                return () => element.removeEventListener('mousedown', createRipple);
+            }, [ref]);
+        }
+
+        // --- Components ---
+        function RippleButton({ children, className, onClick, ariaLabel, type = 'button', disabled = false }) {
+            const buttonRef = useRef(null); useRipple(buttonRef);
+            return <button ref={buttonRef} onClick={onClick} className={`ripple-container ${className}`} aria-label={ariaLabel} type={type} disabled={disabled}>{children}</button>;
+        }
+
+        function NoteCard({ note, onEdit, onDelete, onView }) {
+            const cardRef = useRef(null); const editButtonRef = useRef(null); const deleteButtonRef = useRef(null);
+            useRipple(cardRef); useRipple(editButtonRef); useRipple(deleteButtonRef);
+
+            const handleCardClick = (e) => {
+                if (editButtonRef.current?.contains(e.target) || deleteButtonRef.current?.contains(e.target)) return;
+                onView(note);
+            };
+
+            const createMarkup = () => ({ __html: note.content || '' });
+
+            // --- Dynamic Color Logic ---
+            const isFullColor = note.colorMode === 'full';
+            const isCustomColor = !!note.customHex;
+            const predefinedColor = note.color || DEFAULT_COLOR_OBJECT; // The object
+            const customHex = note.customHex;
+
+            let cardBg = 'bg-deep-card';
+            let textColor = 'text-light-text';
+            let dimTextColor = 'text-dim-text';
+            let borderColorClass = 'border-deep-border'; // Tailwind class for default
+            let cardInlineStyle = {};
+            let cardBorderClass = 'card-accent-border'; // The border-l-4 utility
+            let tagBadgeClass = 'tag-badge'; // Default dark mode badge
+            let footerBorderColor = 'border-deep-border border-opacity-50';
+
+            if (isCustomColor) {
+                if (isFullColor) {
+                    cardBg = ''; // Remove Tailwind bg class
+                    cardInlineStyle.backgroundColor = customHex;
+                    const textPref = getTextColorForBackground(customHex);
+                    textColor = textPref === 'dark' ? 'text-dark-text' : 'text-light-text';
+                    dimTextColor = textPref === 'dark' ? 'text-dark-dim-text' : 'text-dim-text';
+                    tagBadgeClass = textPref === 'dark' ? 'tag-badge-dynamic-dark' : 'tag-badge-dynamic-light';
+                    cardBorderClass = ''; // No border-left class
+                    borderColorClass = 'border-transparent'; // Transparent border all around
+                    footerBorderColor = textPref === 'dark' ? 'border-black border-opacity-20' : 'border-white border-opacity-20';
+                } else { // Custom border color
+                    cardBg = 'bg-deep-card';
+                    textColor = 'text-light-text';
+                    dimTextColor = 'text-dim-text';
+                    borderColorClass = ''; // Remove Tailwind border class
+                    cardInlineStyle.borderLeftColor = customHex; // Set border color directly
+                    cardBorderClass = 'card-accent-border'; // Keep border-l-4
+                    tagBadgeClass = 'tag-badge';
+                    footerBorderColor = 'border-deep-border border-opacity-50';
+                }
+            } else { // Predefined Color
+                if (isFullColor) {
+                    cardBg = predefinedColor.bg;
+                    // Simple heuristic for predefined: assume bright colors need dark text
+                    const needsDarkText = ['bg-neon-green', 'bg-neon-yellow', 'bg-neon-cyan', 'bg-neon-teal'].includes(predefinedColor.bg);
+                    textColor = needsDarkText ? 'text-dark-text' : 'text-light-text';
+                    dimTextColor = needsDarkText ? 'text-dark-dim-text' : 'text-dim-text';
+                    tagBadgeClass = needsDarkText ? 'tag-badge-dark' : 'tag-badge'; // Specific badge for predefined light bg
+                    cardBorderClass = ''; // No border-left
+                    borderColorClass = 'border-transparent'; // Transparent border all around
+                    footerBorderColor = needsDarkText ? 'border-black border-opacity-20' : 'border-deep-border border-opacity-50';
+                 } else { // Predefined border color
+                    cardBg = 'bg-deep-card';
+                    textColor = 'text-light-text';
+                    dimTextColor = 'text-dim-text';
+                    borderColorClass = predefinedColor.value || DEFAULT_COLOR_OBJECT.value;
+                    cardBorderClass = 'card-accent-border';
+                    tagBadgeClass = 'tag-badge';
+                    footerBorderColor = 'border-deep-border border-opacity-50';
+                }
+            }
+            // --- End Color Logic ---
+
+            return (
+                <div
+                    ref={cardRef}
+                    onClick={handleCardClick}
+                    style={cardInlineStyle} // Apply inline styles for custom colors
+                    className={`note-card rounded-lg shadow-lg p-4 flex flex-col transition-all duration-300 ease-in-out hover:shadow-xl hover:-translate-y-1 ${cardBorderClass} ${borderColorClass} ${cardBg} ${textColor} animate-fadeIn cursor-pointer`}
+                 >
+                    <div className="flex-grow">
+                        <h3 className={`text-lg font-semibold mb-2 break-words ${textColor}`}>{note.title}</h3>
+                        <div className={`note-content-area text-sm ql-editor ${dimTextColor}`} dangerouslySetInnerHTML={createMarkup()} />
+                         {note.tags && note.tags.length > 0 && (
+                             <div className="mt-2">
+                                 {note.tags.map(tag => <span key={tag} className={tagBadgeClass}>{tag}</span>)}
+                             </div>
+                         )}
+                    </div>
+                    <div className={`flex justify-between items-center mt-auto pt-2 border-t ${footerBorderColor}`}>
+                        <span className={`text-xs ${dimTextColor}`}>{formatDate(note.lastEdited || note.timestamp)}</span>
+                        <div className="flex space-x-2">
+                            <RippleButton ref={editButtonRef} onClick={(e) => { e.stopPropagation(); onEdit(note); }} className={`${dimTextColor} hover:text-neon-cyan p-1 rounded`} ariaLabel="Edit Note">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" /></svg>
+                            </RippleButton>
+                            <RippleButton ref={deleteButtonRef} onClick={(e) => { e.stopPropagation(); onDelete(note.id); }} className={`${dimTextColor} hover:text-neon-pink p-1 rounded`} ariaLabel="Delete Note">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
+                            </RippleButton>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        function ViewNoteModal({ isOpen, onClose, note }) {
+            const [isAnimatingOut, setIsAnimatingOut] = useState(false);
+
+            const handleClose = useCallback(() => {
+                setIsAnimatingOut(true);
+                setTimeout(() => { onClose(); setIsAnimatingOut(false); }, 300);
+            }, [onClose]);
+
+            useEffect(() => {
+                 const handleKeyDown = (event) => event.key === 'Escape' && handleClose();
+                 if (isOpen) window.addEventListener('keydown', handleKeyDown);
+                 return () => window.removeEventListener('keydown', handleKeyDown);
+            }, [isOpen, handleClose]);
+
+             if (!isOpen && !isAnimatingOut) return null;
+             if (!note) return null;
+
+            const createMarkup = () => ({ __html: note.content || '' });
+
+            // --- Dynamic Color Logic (Mirrors NoteCard) ---
+            const isFullColor = note.colorMode === 'full';
+            const isCustomColor = !!note.customHex;
+            const predefinedColor = note.color || DEFAULT_COLOR_OBJECT;
+            const customHex = note.customHex;
+
+            let cardBg = 'bg-deep-card';
+            let textColor = 'text-light-text';
+            let dimTextColor = 'text-dim-text';
+            let cardInlineStyle = {};
+            let tagBadgeClass = 'tag-badge';
+            let footerBorderColor = 'border-deep-border border-opacity-50';
+
+            if (isCustomColor) {
+                if (isFullColor) {
+                    cardBg = '';
+                    cardInlineStyle.backgroundColor = customHex;
+                    const textPref = getTextColorForBackground(customHex);
+                    textColor = textPref === 'dark' ? 'text-dark-text' : 'text-light-text';
+                    dimTextColor = textPref === 'dark' ? 'text-dark-dim-text' : 'text-dim-text';
+                    tagBadgeClass = textPref === 'dark' ? 'tag-badge-dynamic-dark' : 'tag-badge-dynamic-light';
+                    footerBorderColor = textPref === 'dark' ? 'border-black border-opacity-20' : 'border-white border-opacity-20';
+                } else {
+                     cardBg = 'bg-deep-card';
+                     textColor = 'text-light-text';
+                     dimTextColor = 'text-dim-text';
+                     tagBadgeClass = 'tag-badge';
+                     footerBorderColor = 'border-deep-border border-opacity-50';
+                }
+            } else { // Predefined Color
+                if (isFullColor) {
+                    cardBg = predefinedColor.bg;
+                    const needsDarkText = ['bg-neon-green', 'bg-neon-yellow', 'bg-neon-cyan', 'bg-neon-teal'].includes(predefinedColor.bg);
+                    textColor = needsDarkText ? 'text-dark-text' : 'text-light-text';
+                    dimTextColor = needsDarkText ? 'text-dark-dim-text' : 'text-dim-text';
+                    tagBadgeClass = needsDarkText ? 'tag-badge-dark' : 'tag-badge';
+                    footerBorderColor = needsDarkText ? 'border-black border-opacity-20' : 'border-deep-border border-opacity-50';
+                 } else {
+                    cardBg = 'bg-deep-card';
+                    textColor = 'text-light-text';
+                    dimTextColor = 'text-dim-text';
+                    tagBadgeClass = 'tag-badge';
+                    footerBorderColor = 'border-deep-border border-opacity-50';
+                }
+            }
+             // --- End Color Logic ---
+
+            return (
+                 <div className={`fixed inset-0 z-50 flex items-center justify-center transition-opacity duration-300 ${isOpen && !isAnimatingOut ? 'opacity-100' : 'opacity-0'} ${isAnimatingOut ? 'animate-fadeOut' : 'animate-fadeIn'}`} style={{ backgroundColor: 'rgba(0, 0, 0, 0.7)' }} onClick={handleClose} aria-modal="true" role="dialog" >
+                    <div style={cardInlineStyle} className={`rounded-lg shadow-2xl p-6 m-4 w-full max-w-2xl transform transition-transform duration-300 ${isOpen && !isAnimatingOut ? 'scale-100 animate-slideInUp' : 'scale-95'} ${isAnimatingOut ? 'scale-95' : ''} overflow-hidden ${cardBg} ${textColor}`} onClick={(e) => e.stopPropagation()} >
+                         <h2 className={`text-2xl font-semibold mb-4 ${textColor}`}>{note.title}</h2>
+                        <div className={`note-content-area text-base ql-editor mb-4 ${dimTextColor}`} dangerouslySetInnerHTML={createMarkup()} />
+                         {note.tags && note.tags.length > 0 && (
+                             <div className="mb-4">
+                                 <span className={`text-sm font-medium mr-2 ${dimTextColor}`}>Tags:</span>
+                                 {note.tags.map(tag => <span key={tag} className={tagBadgeClass}>{tag}</span>)}
+                             </div>
+                         )}
+                        <div className={`flex justify-between items-center mt-4 pt-2 border-t ${footerBorderColor}`}>
+                             <span className={`text-xs ${dimTextColor}`}>Last Edited: {formatDate(note.lastEdited || note.timestamp)}</span>
+                            <RippleButton onClick={handleClose} className="px-4 py-2 rounded bg-gray-600 hover:bg-gray-500 text-light-text">Close</RippleButton>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        function NoteModal({ isOpen, onClose, onSave, noteToEdit }) {
+            const [title, setTitle] = useState('');
+            const [content, setContent] = useState('');
+            const [tagsInput, setTagsInput] = useState('');
+            const [selectedColor, setSelectedColor] = useState(DEFAULT_COLOR_OBJECT);
+            const [customColorHex, setCustomColorHex] = useState('#3b82f6');
+            const [colorMode, setColorMode] = useState('border');
+            const isEditing = noteToEdit !== null;
+            const [isAnimatingOut, setIsAnimatingOut] = useState(false);
+            const quillRef = useRef(null);
+
+            const quillModules = useMemo(() => ({
+                 toolbar: [
+                    [{ 'header': [1, 2, 3, false] }], [{ 'font': Font.whitelist }],
+                    ['bold', 'italic', 'underline'], [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                    ['link', 'clean'], [{ 'history': 'undo' }, { 'history': 'redo' }]
+                ], history: { delay: 500, maxStack: 100, userOnly: true }
+            }), []);
+            const quillFormats = ['header', 'font', 'bold', 'italic', 'underline', 'list', 'bullet', 'link', 'history'];
+
+            useEffect(() => {
+                if (isOpen) {
+                    if (isEditing) {
+                        setTitle(noteToEdit.title);
+                        setContent(noteToEdit.content || '');
+                        setTagsInput(formatTags(noteToEdit.tags));
+                        setColorMode(noteToEdit.colorMode || 'border');
+                        if (noteToEdit.customHex) {
+                            setSelectedColor(null);
+                            setCustomColorHex(noteToEdit.customHex);
+                        } else {
+                            setSelectedColor(noteToEdit.color || DEFAULT_COLOR_OBJECT);
+                        }
+                    } else {
+                        setTitle(''); setContent(''); setTagsInput('');
+                        setColorMode('border');
+                        setSelectedColor(getRandomAccent());
+                        setCustomColorHex('#3b82f6');
+                    }
+                     if (quillRef.current) quillRef.current.getEditor().history.clear();
+                }
+            }, [isOpen, noteToEdit, isEditing]);
+
+            const handleClose = useCallback(() => {
+                setIsAnimatingOut(true);
+                setTimeout(() => { onClose(); setIsAnimatingOut(false); }, 300);
+            }, [onClose]);
+
+            const handleSave = () => {
+                 const plainTextContent = quillRef.current?.getEditor().getText().trim();
+                if (title.trim() || plainTextContent) {
+                    const noteData = {
+                        id: isEditing ? noteToEdit.id : generateId(),
+                        title: title.trim() || "Untitled Note",
+                        content: content,
+                        tags: parseTags(tagsInput),
+                        timestamp: isEditing ? noteToEdit.timestamp : Date.now(),
+                        lastEdited: Date.now(),
+                        colorMode: colorMode,
+                         color: selectedColor,
+                         customHex: selectedColor ? null : customColorHex
+                    };
+                    onSave(noteData); handleClose();
+                } else { handleClose(); }
+            };
+
+            useEffect(() => {
+                 const handleKeyDown = (event) => event.key === 'Escape' && handleClose();
+                 if (isOpen) window.addEventListener('keydown', handleKeyDown);
+                 return () => window.removeEventListener('keydown', handleKeyDown);
+            }, [isOpen, handleClose]);
+
+            const cancelButtonRef = useRef(null); const saveButtonRef = useRef(null);
+            useRipple(cancelButtonRef); useRipple(saveButtonRef);
+
+            if (!isOpen && !isAnimatingOut) return null;
+
+             const handlePredefinedColorSelect = (color) => { setSelectedColor(color); };
+             const handleCustomColorChange = (e) => { setCustomColorHex(e.target.value); setSelectedColor(null); };
+
+            return (
+                <div className={`fixed inset-0 z-50 flex items-center justify-center transition-opacity duration-300 ${isOpen && !isAnimatingOut ? 'opacity-100' : 'opacity-0'} ${isAnimatingOut ? 'animate-fadeOut' : 'animate-fadeIn'}`} style={{ backgroundColor: 'rgba(0, 0, 0, 0.7)' }} onClick={handleClose} aria-modal="true" role="dialog" >
+                    <div className={`bg-deep-card rounded-lg shadow-2xl p-6 m-4 w-full max-w-3xl transform transition-transform duration-300 ${isOpen && !isAnimatingOut ? 'scale-100 animate-slideInUp' : 'scale-95'} ${isAnimatingOut ? 'scale-95' : ''}`} onClick={(e) => e.stopPropagation()} >
+                        <h2 className="text-2xl font-semibold mb-4 text-neon-green font-mono">{isEditing ? 'Edit Note' : 'Add New Note'}</h2>
+                        <input type="text" placeholder="Note Title" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full p-3 mb-4 bg-deep-bg border border-deep-border rounded text-light-text focus:outline-none focus:ring-2 focus:ring-neon-green focus:border-transparent placeholder-dim-text font-mono" />
+
+                        <div className="mb-4">
+                             <ReactQuill ref={quillRef} theme="snow" value={content} onChange={setContent} modules={quillModules} formats={quillFormats} placeholder="Note Content..." className="bg-deep-bg" />
+                        </div>
+
+                         <div className="mb-4">
+                             <label htmlFor="tags-input" className="block text-sm font-medium text-dim-text mb-1">Tags (comma-separated):</label>
+                             <input id="tags-input" type="text" placeholder="e.g. work, ideas, important" value={tagsInput} onChange={(e) => setTagsInput(e.target.value)} className="w-full p-2 bg-deep-bg border border-deep-border rounded text-light-text focus:outline-none focus:ring-2 focus:ring-neon-green focus:border-transparent placeholder-dim-text" />
+                         </div>
+
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                             <div>
+                                <label className="block text-sm font-medium text-dim-text mb-2">Card Color:</label>
+                                <div className="flex flex-wrap gap-2 items-center">
+                                    {ACCENT_COLORS.map(color => (
+                                        <button
+                                            key={color.value} type="button"
+                                            onClick={() => handlePredefinedColorSelect(color)}
+                                            className={`w-8 h-8 rounded-full border-2 transition-all ${selectedColor?.value === color.value ? 'ring-2 ring-offset-2 ring-offset-deep-card ring-light-text' : 'border-deep-border'} ${color.bg}`}
+                                            aria-label={`Select ${color.name} color`} >
+                                            {/* Checkmark removed for simplicity */}
+                                        </button>
+                                    ))}
+                                    {/* --- CHANGE START: Custom Color Picker with Icon --- */}
+                                    <div
+                                        className={`relative w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all ${selectedColor === null ? 'ring-2 ring-offset-2 ring-offset-deep-card ring-light-text border-light-text' : 'border-deep-border'} cursor-pointer overflow-hidden`}
+                                        title="Select custom color"
+                                        aria-label="Select custom color"
+                                    >
+                                        {/* Palette Icon */}
+                                        <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${selectedColor === null ? 'text-light-text' : 'text-dim-text'} pointer-events-none`} viewBox="0 0 20 20" fill="currentColor">
+                                          <path d="M10 3.5a1.5 1.5 0 013 0V5h-3V3.5z" />
+                                          <path fillRule="evenodd" d="M10 7a1 1 0 00-1 1v5.5a1.5 1.5 0 003 0V8a1 1 0 00-1-1zm-3.5 1.5a.5.5 0 01.5-.5h1a.5.5 0 01.5.5v1a.5.5 0 01-.5.5h-1a.5.5 0 01-.5-.5v-1zm-1 3a.5.5 0 01.5-.5h1a.5.5 0 01.5.5v1a.5.5 0 01-.5.5h-1a.5.5 0 01-.5-.5v-1zm13-3a.5.5 0 00-.5.5v1a.5.5 0 00.5.5h1a.5.5 0 00.5-.5v-1a.5.5 0 00-.5-.5h-1zm-1 3a.5.5 0 00-.5.5v1a.5.5 0 00.5.5h1a.5.5 0 00.5-.5v-1a.5.5 0 00-.5-.5h-1z" clipRule="evenodd" />
+                                          <path fillRule="evenodd" d="M10 2a8 8 0 100 16 8 8 0 000-16zM3 10a7 7 0 1114 0 7 7 0 01-14 0z" clipRule="evenodd" />
+                                        </svg>
+                                        {/* Invisible Color Input Overlay */}
+                                        <input
+                                            type="color"
+                                            value={customColorHex}
+                                            onChange={handleCustomColorChange}
+                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                        />
+                                    </div>
+                                     {/* --- CHANGE END --- */}
+                                </div>
+                             </div>
+                             <div>
+                                 <label className="block text-sm font-medium text-dim-text mb-2">Color Style:</label>
+                                 <div className="flex items-center space-x-4">
+                                     <label className="flex items-center cursor-pointer">
+                                         <input type="radio" name="colorMode" value="border" checked={colorMode === 'border'} onChange={(e) => setColorMode(e.target.value)} className="form-radio h-4 w-4 text-neon-green bg-deep-bg border-deep-border focus:ring-neon-green" />
+                                         <span className="ml-2 text-sm text-light-text">Accent Border</span>
+                                     </label>
+                                     <label className="flex items-center cursor-pointer">
+                                         <input type="radio" name="colorMode" value="full" checked={colorMode === 'full'} onChange={(e) => setColorMode(e.target.value)} className="form-radio h-4 w-4 text-neon-green bg-deep-bg border-deep-border focus:ring-neon-green" />
+                                         <span className="ml-2 text-sm text-light-text">Full Background</span>
+                                     </label>
+                                 </div>
+                             </div>
+                         </div>
+
+                        <div className="flex justify-end space-x-3">
+                             <RippleButton ref={cancelButtonRef} onClick={handleClose} className="px-4 py-2 rounded bg-gray-600 hover:bg-gray-500 text-light-text">Cancel</RippleButton>
+                             <RippleButton ref={saveButtonRef} onClick={handleSave} className="px-4 py-2 rounded bg-neon-green text-deep-bg font-semibold hover:opacity-90 shadow-neon-sm"> {isEditing ? 'Save Changes' : 'Add Note'} </RippleButton>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        function App() {
+            const [notes, setNotes] = useState([]);
+            const [searchTerm, setSearchTerm] = useState('');
+            const [sortOrder, setSortOrder] = useState('lastEdited-desc');
+            const [isModalOpen, setIsModalOpen] = useState(false);
+            const [currentNote, setCurrentNote] = useState(null);
+            const [viewNote, setViewNote] = useState(null);
+            const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+            const addNoteButtonRef = useRef(null); useRipple(addNoteButtonRef);
+
+            // Load notes
+            useEffect(() => {
+                try {
+                    const storedNotes = localStorage.getItem(LOCAL_STORAGE_KEY);
+                    if (storedNotes) {
+                        const parsedNotes = JSON.parse(storedNotes).map(note => {
+                             let finalColor = null;
+                             if (!note.customHex) {
+                                 if (typeof note.color === 'string') {
+                                     finalColor = ACCENT_COLORS.find(c => c.value === note.color) || DEFAULT_COLOR_OBJECT;
+                                 } else {
+                                     finalColor = note.color || DEFAULT_COLOR_OBJECT;
+                                 }
+                             }
+                             return {
+                                 ...note,
+                                 color: finalColor,
+                                 customHex: note.customHex || null,
+                                 colorMode: note.colorMode || 'border',
+                                 tags: note.tags || [],
+                             };
+                         });
+                        setNotes(parsedNotes);
+                    }
+                } catch (error) { console.error("Failed load:", error); localStorage.removeItem(LOCAL_STORAGE_KEY); }
+            }, []);
+
+            // Save notes
+            useEffect(() => { try { localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(notes)); } catch (error) { console.error("Failed save:", error); } }, [notes]);
+
+            const handleSearch = (e) => setSearchTerm(e.target.value);
+            const handleSortChange = (e) => setSortOrder(e.target.value);
+
+            const openAddModal = () => { setCurrentNote(null); setIsModalOpen(true); };
+            const openEditModal = (note) => { setCurrentNote(note); setIsModalOpen(true); };
+            const closeModal = () => { setIsModalOpen(false); setCurrentNote(null); };
+
+            const openViewModal = useCallback((note) => { setViewNote(note); setIsViewModalOpen(true); }, []);
+            const closeViewModal = useCallback(() => { setIsViewModalOpen(false); setTimeout(() => setViewNote(null), 300); }, []);
+
+            const addNote = (newNote) => { setNotes(prevNotes => [...prevNotes, { ...newNote, timestamp: Date.now(), lastEdited: Date.now() }]); };
+            const updateNote = (updatedNote) => { setNotes(prevNotes => prevNotes.map(note => note.id === updatedNote.id ? { ...note, ...updatedNote, lastEdited: Date.now() } : note )); };
+            const deleteNote = useCallback((id) => { if (window.confirm('Delete this note forever?')) { setNotes(prevNotes => prevNotes.filter(note => note.id !== id)); } }, []);
+            const handleSaveNote = (noteData) => { (currentNote ? updateNote : addNote)(noteData); };
+
+            const filteredAndSortedNotes = useMemo(() => {
+                const lowerCaseSearchTerm = searchTerm.toLowerCase();
+                const stripHtml = (html) => (new DOMParser().parseFromString(html || '', 'text/html')).body.textContent || "";
+                const filtered = notes.filter(note =>
+                    note.title.toLowerCase().includes(lowerCaseSearchTerm) ||
+                    stripHtml(note.content).toLowerCase().includes(lowerCaseSearchTerm) ||
+                    (note.tags || []).some(tag => tag.toLowerCase().includes(lowerCaseSearchTerm))
+                );
+                 return filtered.sort((a, b) => {
+                     const [key, direction] = sortOrder.split('-');
+                     const dir = direction === 'asc' ? 1 : -1;
+                     switch (key) {
+                         case 'title': return a.title.localeCompare(b.title) * dir;
+                         case 'created': return (a.timestamp - b.timestamp) * dir;
+                         case 'lastEdited': default: return ((a.lastEdited || a.timestamp) - (b.lastEdited || b.timestamp)) * dir;
+                     }
+                 });
+            }, [notes, searchTerm, sortOrder]);
+
+            return (
+                <div className="min-h-screen flex flex-col">
+                     <header className="sticky top-0 z-30 bg-deep-bg bg-opacity-80 backdrop-blur-md shadow-md px-4 sm:px-6 lg:px-8 py-3 border-b border-deep-border border-opacity-50">
+                         <div className="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-4">
+                            <div className="flex items-center flex-shrink-0">
+                                <span className="text-2xl sm:text-3xl font-bold text-neon-green text-shadow-neon-green mr-2 font-mono">Slynk<span className="hidden sm:inline"> Notes</span></span>
+                            </div>
+                             {/* --- CHANGE START: Header Search/Sort Alignment --- */}
+                            <div className="flex items-center gap-4 justify-end md:ml-auto"> {/* Changed classes here */}
+                            {/* --- CHANGE END --- */}
+                                <div className="relative min-w-0 max-w-xs sm:max-w-sm flex-grow sm:flex-grow-0"> {/* Allow shrink but not excessive grow */}
+                                    <input type="text" placeholder="Search..." value={searchTerm} onChange={handleSearch} className="w-full pl-10 pr-4 py-2 rounded-full bg-deep-card border border-deep-border text-light-text focus:outline-none focus:ring-2 focus:ring-neon-green focus:border-transparent placeholder-dim-text"/>
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-dim-text" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" /></svg></div>
+                                </div>
+                                 <div className="relative">
+                                      <select value={sortOrder} onChange={handleSortChange} className="appearance-none pl-3 pr-8 py-2 rounded-full bg-deep-card border border-deep-border text-light-text focus:outline-none focus:ring-2 focus:ring-neon-green focus:border-transparent text-sm" >
+                                         <option value="lastEdited-desc">Edited: Newest</option> <option value="lastEdited-asc">Edited: Oldest</option>
+                                         <option value="created-desc">Created: Newest</option> <option value="created-asc">Created: Oldest</option>
+                                         <option value="title-asc">Title: A-Z</option> <option value="title-desc">Title: Z-A</option>
+                                     </select>
+                                     <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none"><svg className="w-4 h-4 text-dim-text" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 9l4-4 4 4m0 6l-4 4-4-4"></path></svg></div>
+                                 </div>
+                            </div>
+                        </div>
+                    </header>
+
+                    <main className="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                        <RippleButton ref={addNoteButtonRef} onClick={openAddModal} className="fixed bottom-6 right-6 z-20 bg-neon-green text-deep-bg rounded-full p-3 shadow-lg hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-deep-bg focus:ring-neon-green transform hover:scale-110 active:scale-100" ariaLabel="Add New Note">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
+                        </RippleButton>
+
+                        {filteredAndSortedNotes.length > 0 ? (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-start">
+                                {filteredAndSortedNotes.map(note => <NoteCard key={note.id} note={note} onEdit={openEditModal} onDelete={deleteNote} onView={openViewModal} />)}
+                            </div>
+                        ) : (
+                             <div className="text-center text-dim-text mt-16 animate-fadeIn">
+                                <p className="text-xl mb-4">{notes.length === 0 ? "No notes yet. Create one!" : (searchTerm ? "No notes match your search." : "No notes found.")}</p>
+                                {notes.length === 0 && <RippleButton onClick={openAddModal} className="mt-4 px-5 py-2 rounded bg-neon-green text-deep-bg font-semibold hover:opacity-90 shadow-neon-sm">Create First Note</RippleButton> }
+                            </div>
+                        )}
+                    </main>
+
+                    <footer className="text-center py-4 text-sm text-dim-text border-t border-deep-border border-opacity-30 mt-8">Slynk Notes © {new Date().getFullYear()} - Color Enhanced</footer>
+
+                    <NoteModal isOpen={isModalOpen} onClose={closeModal} onSave={handleSaveNote} noteToEdit={currentNote} />
+                    <ViewNoteModal isOpen={isViewModalOpen} onClose={closeViewModal} note={viewNote} />
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+
+</body>
+</html>
